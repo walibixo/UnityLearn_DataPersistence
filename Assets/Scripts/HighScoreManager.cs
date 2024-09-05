@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEngine;
 
 public class HighScoreManager : MonoBehaviour
@@ -20,46 +22,81 @@ public class HighScoreManager : MonoBehaviour
         LoadHighScore();
     }
 
-    public static HighScoreData HighScore { get; private set; }
+    public static HighScoresData.HighScoreData HighScore { get; private set; }
+    public static List<HighScoresData.HighScoreData> HighScores { get; private set; }
 
     public static void SetHighScore(int score)
     {
-        if (score > HighScore.Score)
+        HighScores.Add(new HighScoresData.HighScoreData
         {
-            HighScore.Score = score;
-            HighScore.PlayerName = PlayerNameManager.PlayerName;
+            Score = score,
+            PlayerName = PlayerNameManager.PlayerName
+        });
+
+        if (HighScores.Count > 6)
+        {
+            HighScores = HighScores.OrderByDescending(s => s.Score).Take(6).ToList();
         }
+
+        HighScore = HighScores.OrderByDescending(s => s.Score).First();
+
+        SaveHighScore();
     }
 
-    private void LoadHighScore()
+    private static void LoadHighScore()
     {
         string path = Application.persistentDataPath + "/savefile.json";
 
-        HighScoreData data = null;
+        HighScoresData data = null;
         if (File.Exists(path))
         {
             string json = File.ReadAllText(path);
-            data = JsonUtility.FromJson<HighScoreData>(json);
+            data = JsonUtility.FromJson<HighScoresData>(json);
         }
 
-        HighScore = data ?? new()
+        HighScore = data?.HighScores.OrderByDescending(s => s.Score).FirstOrDefault() ?? new()
         {
             Score = 0,
             PlayerName = "NULL"
         };
+
+        HighScores = data?.HighScores ?? new List<HighScoresData.HighScoreData>() {
+            HighScore,
+            HighScore,
+            HighScore,
+            HighScore,
+            HighScore,
+            HighScore
+        };
     }
 
-    private void SaveHighScore()
+    private static void SaveHighScore()
     {
-        string json = JsonUtility.ToJson(HighScore);
+        string json = JsonUtility.ToJson(new HighScoresData(HighScores));
 
         File.WriteAllText(Application.persistentDataPath + "/savefile.json", json);
     }
 
     [Serializable]
-    public class HighScoreData
+    public class HighScoresData
     {
-        public int Score;
-        public string PlayerName;
+        public List<HighScoreData> HighScores;
+
+        public HighScoresData()
+        {
+            HighScores = new List<HighScoreData>();
+        }
+
+        public HighScoresData(List<HighScoreData> highScores)
+        {
+            HighScores = highScores;
+        }
+
+        [Serializable]
+        public class HighScoreData
+        {
+            public int Score;
+            public string PlayerName;
+        }
     }
 }
